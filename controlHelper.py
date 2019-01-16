@@ -84,3 +84,8 @@ def sumRGB(img):
     
     l = len(data)
     return r/l,g/l,b/l
+
+def getColor(img):
+    r,g,b = sumRGB(img)
+    color = {'red':r,'green':g,'blue':b}
+    return max(color,key = lambda x:color[x])
