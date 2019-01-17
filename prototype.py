@@ -9,6 +9,9 @@ from controller import Controller
 import matplotlib.pyplot as plt
 
 def excute(order,pre = ''):
+    if pre == '':
+        os.popen(order)
+        return
     line = '%s "%s"'%(pre,order)
     #print(line)
     os.popen(line)

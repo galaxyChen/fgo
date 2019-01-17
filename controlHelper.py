@@ -16,6 +16,9 @@ def printTime():
     print(time.strftime('%H:%M:%S',time.localtime(time.time())))
 
 def excute(order,pre = ''):
+    if pre == '':
+        os.popen(order)
+        return
     line = '%s "%s"'%(pre,order)
     #print(line)
     os.popen(line)
