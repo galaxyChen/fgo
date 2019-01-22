@@ -51,6 +51,9 @@ class Controller():
         self.attackReady = False
         self.op = baseOperator()
         self.log = open('./log/log_%s.txt'%time.strftime('%m-%d %H:%M:%S',time.localtime()),'w')
+        self.logPath = './log/%s/'%time.strftime('%m-%d %H:%M:%S',time.localtime())
+        os.mkdir(self.logPath)
+        
         
     def log(self,sentence):
         t = time.strftime('%H:%M:%S',time.localtime())
@@ -98,7 +101,7 @@ class Controller():
             return
         if state == "nextStep":
             print("下一步")
-            self.nextStep(img)
+            self.nextStep()
             return
         if state == "wait":
             self.op.tap(970,90)
@@ -106,7 +109,9 @@ class Controller():
             time.sleep(1)
             return
         
-    def nextStep(self,img):
+    def nextStep(self):
+        img = self.op.getScreenCap()
+        img.save(self.logPath+time.strftime('%m-%d %H:%M:%S',time.localtime())+".png")
         self.op.tap(1100,680)
         time.sleep(5)
         
