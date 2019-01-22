@@ -4,9 +4,6 @@ from socket import *
 import io
 from PIL import Image
 import numpy as np
-import time
-from controller import Controller
-import matplotlib.pyplot as plt
 import sys
 from ocr import send
 import re
@@ -168,17 +165,17 @@ class baseOperator:
         if not img:
             img = self.getScreenCap().convert('L')
         data = send(img.crop((105,650,950,720)))['data']
-        np = []
+        npList = []
         for item in data['item_list']:
             if '%' in item['itemstring']:
                 num = re.sub(numPattern,'',item['itemstring'])
                 if len(num)==0:
-                    np.append(0)
+                    npList.append(0)
                 else:
-                    np.append(int(num))
+                    npList.append(int(num))
                     
         #print(time.time()-start_time)
-        return np
+        return npList
         
     
     
@@ -195,7 +192,7 @@ class baseOperator:
             colors.append(c)
         return colors
     
-    def recognizeCard(self,img = None):
+    def recognizeCard(self,memberCards,img = None):
         if not self.checkMemberData():
             print("member data not found!")
             return
@@ -211,23 +208,22 @@ class baseOperator:
             oneCard = crop(img,x_,y,(width,height))
             cardName = ""
             minDis = 100
-            for m in self.memberCards:
+            for m in memberCards:
                 for c in ['红卡','蓝卡','绿卡']:
                     #print("check "+m+c)
                     _,_,dis = self.findSmall(oneCard,self.memberCards[m][c],5)
                     #print(dis)
                     if dis<minDis:
-                        cardName = m+c
+                        cardName = m+"_"+c
                         minDis = dis
             cardList.append(cardName)
-        
         return cardList
         
         
         
-    def getStars(img = None):
+    def getStars(self,img = None):
         if not img:
-            img = getScreenCap()
+            img = self.getScreenCap()
         enh = ImageEnhance.Contrast(img)
         img = enh.enhance(2)
         y = 340
