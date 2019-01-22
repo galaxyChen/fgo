@@ -19,6 +19,7 @@ def getSign(param):
     return res.upper()
 
 def send(img):
+    start_time = time.time()
     param = {}
     param['app_id'] = app_id
     
@@ -32,6 +33,7 @@ def send(img):
     param['sign'] = getSign(param)
     url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_generalocr'
     response = requests.post(url,param)
+    #print("ocr耗时",time.time()-start_time)
     return response.json()
     
 

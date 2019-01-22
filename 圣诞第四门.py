@@ -5,10 +5,13 @@ import os
 import time
 from baseOp import baseOperator,crop,readAndConvert,excute
 from collections import defaultdict
+from ocr import send
+import codecs
 
 # 初始化小图
 km1 = readAndConvert('./img/km1.png') 
 km2 = readAndConvert('./img/km2.png') 
+km3 = readAndConvert('./img/km3.png')
 ab = readAndConvert('./img/ab.png')
 jm = readAndConvert('./img/jm.png') # 满破静谧
 jm = readAndConvert('./img/jmpt.png') # 普通静谧
@@ -24,6 +27,9 @@ refreshTooFast = readAndConvert('./img/刷新太快.png')#510,533
 confirmFresh = readAndConvert('./img/刷新确认.png')#705,535
 startMission = readAndConvert('./img/开始任务.png')#1105,640
 
+detailX = readAndConvert('./img/详情x.png')#1040,70
+skillX = readAndConvert('./img/技能x.png')#380,400
+
 skillReady = readAndConvert('./img/attack.png') #1070,650
 nextStep = readAndConvert('./img/下一步.png') #1020,650
 
@@ -34,9 +40,7 @@ for i in range(5):
 member = ['孔明','船长','阿比','梅林']
 memberCards = {}
 for m in member:
-    memberCards[m] = {}
-    for c in ['红卡','蓝卡','绿卡']:
-        memberCards[m][c] = Image.open('./img/cards/%s_%s.png'%(m,c)).convert('L')
+    memberCards[m] = Image.open('./img/cards/%s.png'%(m)).convert('L')
 
 
         
@@ -50,19 +54,22 @@ class Controller():
         self.currentBattle = -1
         self.attackReady = False
         self.op = baseOperator()
-        self.log = open('./log/log_%s.txt'%time.strftime('%m-%d %H:%M:%S',time.localtime()),'w')
-        self.logPath = './log/%s/'%time.strftime('%m-%d %H:%M:%S',time.localtime())
+        self.logFile = codecs.open('./log/log_%s.txt'%time.strftime('%m_%d_%H_%M_%S',time.localtime()),'a',encoding='utf-8')
+        self.logPath = './log/%s/'%time.strftime('%m_%d_%H_%M_%S',time.localtime())
         os.mkdir(self.logPath)
+        self.aboutToEnd = True
         
+        self.turn = 0
         
     def log(self,sentence):
         t = time.strftime('%H:%M:%S',time.localtime())
-        self.log.write(t+" "+sentence+'\n')
+        self.logFile.write(t+" "+sentence+'\n')
     
     def finish(self):
         self.finished = True
         os.popen('adb shell am force-stop com.bilibili.fatego')
         self.log("结束任务")
+        self.logFile.close()
         print(time.strftime('%H:%M:%S',time.localtime()))
         print("结束任务")
     
@@ -79,6 +86,7 @@ class Controller():
             return
         img = img.convert('L')
         state = self.checkState(img)
+        print("check state:",state)
         if state == 'selectBattle':
             print("select battle")
             self.selectBattle(img)
@@ -99,6 +107,12 @@ class Controller():
             #print("using skill")
             self.useSkill(img)
             return
+        if state == "detail error":
+            self.op.tap(1065,95)
+            return
+        if state == "skill error":
+            self.op.tap(430,425)
+            return
         if state == "nextStep":
             print("下一步")
             self.nextStep()
@@ -110,35 +124,63 @@ class Controller():
             return
         
     def nextStep(self):
+        print("点击下一步")
         img = self.op.getScreenCap()
-        img.save(self.logPath+time.strftime('%m-%d %H:%M:%S',time.localtime())+".png")
+        img.save(self.logPath+time.strftime('%m_%d_%H_%M_%S',time.localtime())+".png")
         self.op.tap(1100,680)
         time.sleep(5)
         
     def checkState(self,img = None):
         if img is None:
-            img = self.op.getScreenCap()
-        if self.op.checkCondition(img,startMission,1105,640,startMission.size):
-            return "startMission"
+            img = self.op.getScreenCap().convert('L')
+        if not self.aboutToEnd:
+            if self.op.checkCondition(img,skillX,380,400,skillX.size):
+                return "skill error"
+            t = crop(img,1050,565,(180,80)).convert('L')
+            res = send(t)
+            if res['ret'] == 0:
+                res = res['data']['item_list']
+                for item in res:
+                    if item['itemstring'].upper() == 'ATTACK':
+                        return "skill"
+            if self.op.checkCondition(img,detailX,1040,70,detailX.size):
+                return "detail error"
+            return "wait"
+        if self.op.checkCondition(img,nextStep,1020,650,nextStep.size):
+            return "nextStep"
         if self.op.checkCondition(img,state_selectBattle,80,20,state_selectBattle.size):
             return "selectBattle"
         if self.op.checkCondition(img,state_eatApple,520,585,state_eatApple.size):
             return "eatApple"
         if self.op.checkCondition(img,state_support,1040,0,state_support.size):
             return "selectSupport"
-        if self.op.checkCondition(img,skillReady,1070,650,skillReady.size):
-            return "skill"
-        if self.op.checkCondition(img,nextStep,1020,650,nextStep.size):
-            return "nextStep"
+        if self.op.checkCondition(img,startMission,1105,640,startMission.size):
+            return "startMission"
         return "wait"
                 
     
     def attack(self,img):
         self.attackReady = False
         self.log("开始攻击")
+        print("开始攻击")
+        print("检查battle")
         battle = self.op.getBattle(img)
+        while battle == -1:
+            battle = self.op.getBattle(img)
         #star = self.op.getStars(img)
-        cardList = self.op.recognizeCard(img)
+        print("识别英灵色卡")
+        if battle == 1:
+            memberCards_ = {}
+            for m in memberCards:
+                if m != '梅林':
+                    memberCards_[m] = memberCards[m]
+        else:
+            memberCards_ = {}
+            for m in memberCards:
+                if m != '孔明':
+                    memberCards_[m] = memberCards[m]
+        cardList = self.op.recognizeCard(memberCards = memberCards_,img = img)
+        print(cardList)
         #self.log('星星：'+' '.join([str(s) for s in star]))
         self.log(' '.join(cardList))
         card = []
@@ -155,6 +197,7 @@ class Controller():
             card.append(temp)
             
         if battle == 1:
+            print("识别np")
             np = self.op.getNp(img)
             if np[1]>=30 and np[2]>=20:
                 # 攻击优先
@@ -169,19 +212,24 @@ class Controller():
             # 取卡
             card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
             # 用卡
+            print("选卡")
             for c in card:
                 self.selectCard(c['loc'])
-                time.sleep(0.2)
+                time.sleep(0.8)
                 
                 
         if battle == 2:
+            print("识别np")
             np = self.op.getNp(img)
+             
+            print("识别星星")
             star = self.op.getStars(img)
+            
             self.log('星星：'+' '.join([str(s) for s in star]))
             
             if np[2]<100:
                 # 放过宝具了
-                cardPrior = {'阿比':500,'船长':400,'孔明':0}
+                cardPrior = {'阿比':500,'船长':400,'孔明':0,'梅林':0}
                 colorPrior = {'红卡':500,'蓝卡':400,'绿卡':300}
                 for temp in card:
                     temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
@@ -190,14 +238,16 @@ class Controller():
                 card[0],card[1] = card[1],card[0]
             else:
                 # 放宝具
+                print("选宝具")
                 self.useBj(3)
+                time.sleep(0.8)
                 # 选两张卡,船长3连优先
                 if cardCount['船长']>=2:
                     card = [c for c in card if c['member']=='船长']
                     card = sorted(card,key=lambda x:star[x['loc']-1],reverse = True)[0:2]# 星星升序
                     card[0],card[1] = card[1],card[0]
                 else:
-                    cardPrior = {'阿比':500,'船长':400,'孔明':0}
+                    cardPrior = {'阿比':500,'船长':400,'孔明':0,'梅林':0}
                     colorPrior = {'红卡':500,'蓝卡':300,'绿卡':200}
                     for temp in card:
                         temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
@@ -205,18 +255,23 @@ class Controller():
                     card = sorted(card,key = lambda x:x['score'],reverse = True)[0:2]
                     card[0],card[1] = card[1],card[0]
                     # 用卡
+            print("选卡")
             for c in card:
                 self.selectCard(c['loc'])
-                time.sleep(0.2)
+                time.sleep(0.8)
                     
         if battle == 3:
+            print("识别np")
             np = self.op.getNp(img)
+            
+            print("识别星星")
             star = self.op.getStars(img)
+            
             self.log('星星：'+' '.join([str(s) for s in star]))
             
             if np[1]<100:
                 # 放过宝具了
-                cardPrior = {'阿比':500,'船长':400,'孔明':0}
+                cardPrior = {'阿比':500,'船长':400,'孔明':0,'梅林':300}
                 colorPrior = {'红卡':500,'蓝卡':400,'绿卡':300}
                 for temp in card:
                     temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
@@ -225,9 +280,11 @@ class Controller():
                 card[0],card[1] = card[1],card[0]
             else:
                 # 放宝具
+                print("选宝具")
                 self.useBj(2)
+                time.sleep(0.2)
                 # 选两张卡,优先阿比卡，然后是船长
-                cardPrior = {'阿比':500,'船长':400,'孔明':0}
+                cardPrior = {'阿比':500,'船长':400,'孔明':0,'梅林':200}
                 colorPrior = {'红卡':500,'蓝卡':300,'绿卡':200}
                 for temp in card:
                     temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
@@ -246,16 +303,20 @@ class Controller():
                 card = card_
                 
             # 用卡
+            print("选卡")
             for c in card:
                 self.selectCard(c['loc'])
-                time.sleep(0.2)
+                time.sleep(0.8)
+            self.turn = 3.2
+            self.aboutToEnd = True
                 
             
     def excuteSillList(self,skillList):
+        print("执行技能序列")
         for s in skillList:
             self.skill(s)
             while self.checkState()!='skill':
-                time.sleep(0.5)
+                print("等待状态")
     
     def useSkill(self,img):
         self.log("使用技能")
@@ -266,8 +327,6 @@ class Controller():
         print("battle %d"%battle)
         self.log("进入battle%d"%battle)
         if battle != self.currentBattle:
-            if battle == 4:
-                self.skill('j12')
             if battle == 1:
                 skillList = ['j12','j32']
                 self.excuteSillList(skillList)
@@ -283,13 +342,17 @@ class Controller():
                 self.changeTarget(2)
                 skillList = ['j132','j22','m1','m2']
                 self.excuteSillList(skillList)
-                battle += 1
             
             self.currentBattle = battle
         else:
+            if self.turn == 3.2:
+                self.skill('j12')
+                while self.checkState()!='skill':
+                    print("等待状态")
+                self.turn = 3.3
             self.attackReady = True
             self.op.tap(1130,600)
-            time.sleep(2)
+            time.sleep(1.5)
             
     
     def startMission(self):
@@ -299,6 +362,7 @@ class Controller():
         self.log("第%d次打本"%self.times)
         print(time.strftime('%H:%M:%S',time.localtime()))
         print("第%d次打本"%self.times)
+        self.aboutToEnd = False
         time.sleep(10)
         
     def selectBattle(self,img):
@@ -368,22 +432,25 @@ class Controller():
         self.op.tap(x,y)
             
     def changeTarget(self,target):
+        print("change target")
         y = 40
         x_loc = {1:45,2:285,3:525}
         x =x_loc[target]
         self.op.tap(x,y)
-        time.sleep(0.1)
+        time.sleep(0.2)
         
     def changeMember(self,m1,m2):
         self.skill('m3')
+        time.sleep(1)
         y = 350
         x = [140,340,540,740,940,1140]
         self.op.tap(x[m1-1],y)
-        time.sleep(0.2)
+        time.sleep(0.3)
         self.op.tap(x[m2-1],y)
-        time.sleep(0.2)
+        time.sleep(0.3)
         self.op.tap(640,620)
-        time.sleep(1)
+        while self.checkState()!='skill':
+            print("等待状态")
             
     def skill(self,op):
         print("使用技能：%s"%op)
@@ -398,14 +465,14 @@ class Controller():
                 y = 450
                 target = {'1':330,'2':660,'3':950}
                 x = target[op[3]]
-                time.sleep(1)
+                time.sleep(0.5)
                 self.op.tap(x,y)
-            time.sleep(1.5)
+            #time.sleep(1.5)
             return 
         
         if op[0] == 'm':
             self.op.tap(1190,310)
-            time.sleep(0.5)
+            time.sleep(0.8)
             y = 320
             target = {'1':910,'2':995,'3':1080}
             x = target[op[1]]
@@ -414,9 +481,9 @@ class Controller():
                 y = 450
                 target = {'1':330,'2':660,'3':950}
                 x = target[op[2]]
-                time.sleep(1)
+                time.sleep(0.5)
                 self.op.tap(x,y)
-            time.sleep(1.5)
+            #time.sleep(1.5)
             return 
     
     def findSupport(self,supportList,target):
@@ -456,9 +523,10 @@ class Controller():
         print("搜索助战")
         supportList = crop(img,50,170,(216,550))
         found = False
-        supportTarget = [km1,km2]
+        supportTarget = [km3,km1,km2]
         for sup in supportTarget:
             template.paste(sup,box)
+            template.paste(jm,(0,126,157,126+jm.size[1]))
             found = self.findSupport(supportList,template)
             if found:
                 break
@@ -467,9 +535,9 @@ class Controller():
         if not found:
             excute("input swipe 690 700 690 500 300","adb shell")
             print("划一下")
-            time.sleep(3)
+            time.sleep(1)
             self.retryCount += 1
-            if self.retryCount == 4:
+            if self.retryCount == 5:
                 # 尝试4次就刷新
                 self.refreshSupport()
                 self.retryCount = 0
@@ -481,5 +549,12 @@ if __name__ == '__main__':
     #con = Controller('skm')
     #test = Image.open('./img/test2.png')
     #con.analysis(test)
-    pass
+    settings = {
+        'apple':-1,
+        'times':2,
+        'apple_prior':3
+    }
+    con = Controller(settings)
+    #con.attackReady = True
+    con.run()
         

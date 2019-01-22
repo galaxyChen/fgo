@@ -7,6 +7,7 @@ import numpy as np
 import sys
 from ocr import send
 import re
+import time
 from PIL import ImageEnhance
 
 def readAndConvert(path):
@@ -80,7 +81,7 @@ def sumRGB(img):
 
 def getColor(img):
     r,g,b = sumRGB(img)
-    color = {'red':r,'green':g,'blue':b}
+    color = {'红卡':r,'绿卡':g,'蓝卡':b}
     return max(color,key = lambda x:color[x])
 
 numPattern = re.compile(r'[^\d]')
@@ -112,7 +113,9 @@ class baseOperator:
         excute('adb forward tcp:9090 tcp:7070')
         
     def getScreenCap(self):
+        start_time = time.time()
         screenCap()
+        #print("取图耗时:",time.time()-start_time)
         return fetchImg()
         
     def tap(self,x,y):
@@ -153,28 +156,50 @@ class baseOperator:
     def getBattle(self,img):
         t = img.crop((750,0,950,130))
         res = send(t)
+        if res['ret']!=0:
+            return -1
         res = res['data']['item_list']
         for item in res:
             if item['itemstring'].upper().startswith('BAT'):
-                battle = item['itemstring'].split()[1][0]
-                return int(battle)
+                battle = item['itemstring'].split()
+                if len(battle)>1:
+                    battle = battle[1][0]
+                else:
+                    return -1
+                try:
+                    battle = int(battle)
+                    return int(battle)
+                except ValueError:
+                    return -1
         #print(res)
         return -1;
     
     def getNp(self,img = None):
         if not img:
             img = self.getScreenCap().convert('L')
-        data = send(img.crop((105,650,950,720)))['data']
+        data = send(img.crop((105,650,950,720)))
+        if data['ret']!=0:
+            print("识别失败,重试")
+            return self.getNp()
+        data = data['data']
         npList = []
+        
         for item in data['item_list']:
             if '%' in item['itemstring']:
                 num = re.sub(numPattern,'',item['itemstring'])
                 if len(num)==0:
                     npList.append(0)
                 else:
-                    npList.append(int(num))
+                    try:
+                        npList.append(int(num))
+                    except ValueError:
+                        print(num)
+                        return self.getNp()
                     
         #print(time.time()-start_time)
+        if len(npList)<3:
+            print(npList)
+            return self.getNp()
         return npList
         
     
@@ -193,30 +218,32 @@ class baseOperator:
         return colors
     
     def recognizeCard(self,memberCards,img = None):
-        if not self.checkMemberData():
-            print("member data not found!")
-            return
         if not img:
-            img = self.getScreenCap().convert('L')
+            img = self.getScreenCap()
+        img_ = img.convert('L')
+        print("开始识别")
         y = 350
         x = [40,300,550,810,1070]
         width = 180
         height = 300
         cardList = []
-        for x_ in x:
-            #print()
-            oneCard = crop(img,x_,y,(width,height))
-            cardName = ""
+        color = []
+        cards = []
+        for i,x_ in enumerate(x):
+            t = crop(img_,x_,y,(width,height))
             minDis = 100
+            mark = ''
             for m in memberCards:
-                for c in ['红卡','蓝卡','绿卡']:
-                    #print("check "+m+c)
-                    _,_,dis = self.findSmall(oneCard,self.memberCards[m][c],5)
-                    #print(dis)
-                    if dis<minDis:
-                        cardName = m+"_"+c
-                        minDis = dis
-            cardList.append(cardName)
+                _,_,dis = self.findSmall(t,memberCards[m],5)
+                if dis<minDis:
+                    minDis = dis
+                    mark = m
+            cards.append(mark)
+            
+        color = self.getCardsColor(img)
+        cards = zip(cards,color)
+        for c in cards:
+            cardList.append("%s_%s"%(c[0],c[1]))
         return cardList
         
         
@@ -239,6 +266,8 @@ class baseOperator:
             newImg.paste(crop(img,x[i],y,(width,height)),(0,h,width,h+height))
         
         data = send(newImg.convert('L'))
+        if data['ret'] != 0:
+            return self.getStars()
         star = []
         currentStar = 0
         while (data['ret']!=0):
@@ -256,8 +285,14 @@ class baseOperator:
                 if len(num)==0 or num == '0':
                     currentStar = 0
                 else:
-                    currentStar = int(num)
+                    try:
+                        currentStar = int(num)
+                    except ValueError:
+                        return self.getStars()
         star.append(currentStar)
+        if len(star)<5:
+            return self.getStars()
         return star
     
-    
+if __name__ == '__maiin__':
+    op = baseOperator()
