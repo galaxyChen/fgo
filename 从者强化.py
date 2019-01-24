@@ -14,21 +14,21 @@ while True:
     img = handler.getScreenCap().convert('L')
     if handler.checkCondition(img,goOn,1050,655,goOn.size):
         handler.tap(430,230)
-        time.sleep(0.2)
+        time.sleep(0.5)
     elif handler.checkCondition(img,confirm,1050,0,confirm.size):
         for y_ in y:
             for i in range(7):
                 handler.tap(135+i*135,y_)
-                time.sleep(0.1)
+                time.sleep(0.4)
         #决定
         handler.tap(1150,670)
-        time.sleep(1)
+        time.sleep(1.5)
         #强化
         handler.tap(1110,670)
-        time.sleep(0.5)
+        time.sleep(1.5)
         #决定
         handler.tap(840,590)
-        time.sleep(1)
+        time.sleep(1.5)
     else:
         handler.tap(1170,510)
         handler.tap(1170,510)
