@@ -8,6 +8,9 @@ import time
 import base64
 import hashlib
 from io import BytesIO
+import urllib3
+
+urllib3.disable_warnings()
 
 app_id = 2111335320
 app_key = 'aL5mzBaGQ2XtY0ZR'
@@ -32,7 +35,19 @@ def send(img):
     param['time_stamp'] = time.time()
     param['sign'] = getSign(param)
     url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_generalocr'
-    response = requests.post(url,param)
+    headers = {
+            'Connection': 'close',
+    }
+    try :
+        response = requests.post(url,data = param,headers = headers,verify=False)
+    except requests.exceptions.SSLError:
+        print("请求出错!")
+        time.sleep(5)
+        return send(img)
+    except requests.exceptions.ConnectionError:
+        print("请求出错!")
+        time.sleep(5)
+        return send(img)
     #print("ocr耗时",time.time()-start_time)
     return response.json()
     

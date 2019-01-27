@@ -294,5 +294,5 @@ class baseOperator:
             return self.getStars()
         return star
     
-if __name__ == '__maiin__':
+if __name__ == '__main__':
     op = baseOperator()

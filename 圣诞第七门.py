@@ -85,6 +85,7 @@ class Controller():
         while not self.finished:
             img = self.op.getScreenCap()
             self.analysis(img)
+            time.sleep(0.2)
 
     def analysis(self,img = None):
         if img is None:
@@ -140,6 +141,7 @@ class Controller():
         img = self.op.getScreenCap()
         img.save(self.logPath+time.strftime('%m_%d_%H_%M_%S',time.localtime())+".png")
         self.op.tap(1100,680)
+        excute("adb forward tcp:9090 tcp:7070")
         time.sleep(5)
         
     def checkState(self,img = None):
@@ -237,6 +239,7 @@ class Controller():
                 temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']]
             # 取卡
             card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
+            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
             # 用卡
             print("选卡")
             for c in card:
@@ -253,6 +256,7 @@ class Controller():
                 # 放宝具，攻击优先,小黑三连优先
                 print("选宝具")
                 self.useBj(2)
+                self.log("小黑宝具")
                 time.sleep(0.8)
                 # 选两张卡,小黑3连优先
                 if cardCount['小黑']>=2:
@@ -280,6 +284,7 @@ class Controller():
                 card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
                 card = sorted(card,key = lambda x:star[x['loc']-1])
             print("选卡")
+            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
             for c in card:
                 self.selectCard(c['loc'])
                 time.sleep(0.8)
@@ -293,6 +298,7 @@ class Controller():
                 # 放宝具
                 print("选宝具")
                 self.useBj(1)
+                self.log("闪闪宝具")
                 time.sleep(0.8)
                 # 选两张卡,优先闪闪三连
                 if cardCount['闪闪']>=2:
@@ -320,26 +326,32 @@ class Controller():
 
                 if np[1]>=100:
                     # 放小黑宝具
+                    self.log("小黑宝具")
                     self.useBj(2)
                     time.sleep(0.8)
                     remainCardCount -= 1
                 
                 if np[0]>=100:
                     # 放闪闪宝具
+                    self.log("闪闪宝具")
                     self.useBj(1)
                     time.sleep(0.8)
                     remainCardCount -= 1
                 
                 # 攻击优先
-                cardPrior = {'闪闪':600,'小黑':400,'孔明':0,'梅林':0}
+                cardPrior = {'闪闪':600,'小黑':400,'孔明':300,'梅林':0}
                 colorPrior = {'红卡':600,'蓝卡':400,'绿卡':200}
                 for temp in card:
                     temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
                 # 取卡
                 card = sorted(card,key = lambda x:x['score'],reverse = True)[0:remainCardCount]
+                # 红卡优先
+                rePrior = {'红卡':2,'绿卡':1,'蓝卡':0}
+                card = sorted(card,key = lambda x:rePrior[x['color']],reverse = True)
 
             
             print("选卡")
+            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
             for c in card:
                 self.selectCard(c['loc'])
                 time.sleep(0.8)
@@ -357,6 +369,7 @@ class Controller():
         print("执行技能序列")
         for s in skillList:
             self.skill(s)
+            time.sleep(1)
             state = self.checkState()
             while state!='skill':
                 if state == "detail error" or state =="skill error":
@@ -387,7 +400,7 @@ class Controller():
             
             if battle == 3:
                 self.changeTarget(2)
-                skillList = ['j12','j13','j331','m1']
+                skillList = ['j12','j13','j331','m1','m2']
                 self.excuteSillList(skillList)           
             self.currentBattle = battle
         else:
@@ -485,7 +498,11 @@ class Controller():
         
     def changeMember(self,m1,m2):
         self.skill('m3')
-        time.sleep(1.2)
+        print("检查换人窗口")
+        while not self.op.checkCondition(self.op.getScreenCap().convert('L'),changeX,1200,115,changeX.size):
+            self.skill('m3')
+            time.sleep(1)
+        print("换人")
         y = 350
         x = [140,340,540,740,940,1140]
         self.op.tap(x[m1-1],y)
@@ -497,11 +514,13 @@ class Controller():
         self.op.tap(640,620)
         time.sleep(3)
         # 检查换人错误
-        if self.op.checkCondition(self.op.getScreenCap().convert('L'),changeX,1200,115,changeX.size):
-            self.op.tap(1220,140)
-            time.sleep(0.5)
-            self.changeMember(m1,m2)
+        print("检查换人错误")
         while self.checkState()!='skill':
+            if self.op.checkCondition(self.op.getScreenCap().convert('L'),changeX,1200,115,changeX.size):
+                self.op.tap(1220,140)
+                time.sleep(0.5)
+                self.op.tap(1190,310)
+                self.changeMember(m1,m2)
             print("等待状态")
             
     def skill(self,op):
@@ -573,6 +592,7 @@ class Controller():
             return 
                 
         print("搜索助战")
+        img = self.op.getScreenCap().convert('L')
         supportList = crop(img,50,170,(216,550))
         found = False
         supportTarget = [ss]
@@ -608,6 +628,6 @@ if __name__ == '__main__':
         'apple_prior':1
     }
     con = Controller(settings)
-    #con.attackReady = True
+    #con.inBattle = True
     con.run()
         
