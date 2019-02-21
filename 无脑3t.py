@@ -9,11 +9,12 @@ from ocr import send
 import codecs
 
 # 初始化小图
-xh = readAndConvert('./img/xh.png')
-ss = readAndConvert('./img/ss.png')
-jm = readAndConvert('./img/jm.png') # 满破静谧
-jm = readAndConvert('./img/jmpt.png') # 普通静谧
-mp = readAndConvert('./img/mpjm.png') 
+km1 = readAndConvert('./img/km1.png')
+km2 = readAndConvert('./img/km2.png')
+km3 = readAndConvert('./img/km3.png')
+ml1 = readAndConvert('./img/ml1.png')
+ml2 = readAndConvert('./img/ml2.png')
+wc = readAndConvert('./img/wc.png') # 满破静谧
 template = readAndConvert('./img/template.png') 
 box = (0,0,157,126)
 
@@ -36,7 +37,7 @@ cards = []
 for i in range(5):
     cards.append(Image.open('./img/card%dTitle.png'%(i+1)))
 
-member = ['孔明','闪闪','小黑','梅林']
+member = []
 memberCards = {}
 for m in member:
     memberCards[m] = Image.open('./img/cards/%s.png'%(m)).convert('L')
@@ -194,173 +195,15 @@ class Controller():
         print("battle: %d"%battle)
         #star = self.op.getStars(img)
         if battle == 1:
-            memberCards_ = {}
-            for m in memberCards:
-                if m != '梅林':
-                    memberCards_[m] = memberCards[m]
-        else:
-            memberCards_ = {}
-            for m in memberCards:
-                if m != '孔明':
-                    memberCards_[m] = memberCards[m]
-        print("识别英灵色卡")
-        cardList = self.op.recognizeCard(memberCards = memberCards_,img = img)
-        print(cardList)
-        #self.log('星星：'+' '.join([str(s) for s in star]))
-        self.log(' '.join(cardList))
-        card = []
-        cardCount = defaultdict(lambda : 0)
-        colorCount = defaultdict(lambda : 0)
-        for i,c in enumerate(cardList):
-            temp = {}
-            c = c.split('_')
-            temp['member'] = c[0]
-            temp['color'] = c[1]
-            temp['loc'] = i+1
-            cardCount[c[0]] += 1
-            colorCount[c[1]] += 1
-            card.append(temp)
-            
-        if battle == 1:
-            if not self.condition['1']:
-                print("识别np")
-                np = self.op.getNp(img)
-                if np[1]>=20:
-                    # 完成条件
-                    self.condition['1'] = True
-                else:
-                    #小黑np不足10
-                    # 蓝卡优先
-                    cardPrior = {'闪闪':400,'孔明':400,'小黑':500}
-                    colorPrior = {'红卡':0,'蓝卡':500,'绿卡':400}
-            if self.condition['1']:
-                # 闪闪优先，打星星
-                cardPrior = {'闪闪':800,'孔明':300,'小黑':500}
-                colorPrior = {'红卡':500,'蓝卡':300,'绿卡':400}
-            # 计算选什么卡
-            for temp in card:
-                temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']]
-            # 取卡
-            card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
-            # 红卡优先
-            rePrior = {'红卡':2,'绿卡':1,'蓝卡':0}
-            card = sorted(card,key = lambda x:rePrior[x['color']],reverse = True)
-            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
-            # 用卡
-            print("选卡")
-            for c in card:
-                self.selectCard(c['loc'])
-                time.sleep(0.8)
-                
-                
+            print("宝具1")
+            self.useBj(1)
         if battle == 2:
-            print("识别星星")
-            star = self.op.getStars(img)
-
-            if not self.condition['2']:
-                # 还没放宝具
-                # 放宝具，攻击优先,小黑三连优先
-                print("选宝具")
-                self.useBj(2)
-                self.log("小黑宝具")
-                time.sleep(0.8)
-                # 选两张卡,小黑3连优先
-                if cardCount['小黑']>=2:
-                    card = [c for c in card if c['member']=='小黑']
-                    card = sorted(card,key=lambda x:star[x['loc']-1],reverse = True)[0:2]# 星星升序
-                    card[0],card[1] = card[1],card[0]
-                else:
-                    # 攻击优先
-                    cardPrior = {'闪闪':500,'小黑':400,'孔明':0,'梅林':0}
-                    colorPrior = {'红卡':500,'蓝卡':400,'绿卡':200}
-                    for temp in card:
-                        temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
-                    # 取卡
-                    card = sorted(card,key = lambda x:x['score'],reverse = True)[0:2]
-                    card[0],card[1] = card[1],card[0]
-                self.condition['2'] = True
-            else:
-                # 放过宝具了
-                # 绿卡优先攒星星
-                cardPrior = {'闪闪':400,'小黑':500,'孔明':0,'梅林':0}
-                colorPrior = {'红卡':400,'蓝卡':400,'绿卡':500}
-                for temp in card:
-                    temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
-                # 取卡
-                card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
-                card = sorted(card,key = lambda x:star[x['loc']-1])
-            print("选卡")
-            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
-            for c in card:
-                self.selectCard(c['loc'])
-                time.sleep(0.8)
+            print("宝具2")
+            self.useBj(2)
                     
         if battle == 3:
-            print("识别星星")
-            star = self.op.getStars(img)
-            
-            if not self.condition['3']:
-                # 还没有放闪闪宝具
-                # 放宝具
-                print("选宝具")
-                self.useBj(1)
-                self.log("闪闪宝具")
-                time.sleep(0.8)
-                # 选两张卡,优先闪闪三连
-                if cardCount['闪闪']>=2:
-                    card = [c for c in card if c['member']=='闪闪']
-                    card = sorted(card,key=lambda x:star[x['loc']-1],reverse = True)[0:2]# 星星升序
-                    card[0],card[1] = card[1],card[0]
-                else:
-                    # 攻击优先
-                    cardPrior = {'闪闪':600,'小黑':400,'孔明':0,'梅林':0}
-                    colorPrior = {'红卡':600,'蓝卡':400,'绿卡':200}
-                    for temp in card:
-                        temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
-                    # 取卡
-                    card = sorted(card,key = lambda x:x['score'],reverse = True)[0:2]
-                    card[0],card[1] = card[1],card[0]
-                self.condition['3'] = True
-            else:
-                # 闪闪放过了宝具
-                # 检查能放宝具就放
-                remainCardCount = 3
-                print("识别np")
-                np = self.op.getNp(img) 
-                print("识别星星")
-                star = self.op.getStars(img)
-
-                if np[1]>=100:
-                    # 放小黑宝具
-                    self.log("小黑宝具")
-                    self.useBj(2)
-                    time.sleep(0.8)
-                    remainCardCount -= 1
-                
-                if np[0]>=100:
-                    # 放闪闪宝具
-                    self.log("闪闪宝具")
-                    self.useBj(1)
-                    time.sleep(0.8)
-                    remainCardCount -= 1
-                
-                # 攻击优先
-                cardPrior = {'闪闪':600,'小黑':500,'孔明':300,'梅林':100}
-                colorPrior = {'红卡':600,'蓝卡':400,'绿卡':200}
-                for temp in card:
-                    temp['score'] = cardPrior[temp['member']] + colorPrior[temp['color']] + star[temp['loc']-1]
-                # 取卡
-                card = sorted(card,key = lambda x:x['score'],reverse = True)[0:remainCardCount]
-                # 红卡优先
-                rePrior = {'红卡':2,'绿卡':1,'蓝卡':0}
-                card = sorted(card,key = lambda x:rePrior[x['color']],reverse = True)
-
-            
-            print("选卡")
-            self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
-            for c in card:
-                self.selectCard(c['loc'])
-                time.sleep(0.8)
+            print("宝具3")
+            self.useBj(3)
 
         # 以防万一全选一次卡
         for i in range(5):
@@ -393,20 +236,15 @@ class Controller():
         self.log("进入battle%d"%battle)
         if battle != self.currentBattle:
             if battle == 1:
-                skillList = ['j32']
+                skillList = ['j11','j13','j33']
                 self.excuteSillList(skillList)
                         
             if battle == 2:
-                self.changeTarget(1)
-                skillList = ['j311','j33']
-                self.excuteSillList(skillList)
-                self.changeMember(3,4)
-                skillList = ['j11','j21','j22','j23','j31','j32']
+                skillList = ['j21','j23']
                 self.excuteSillList(skillList)
             
             if battle == 3:
-                self.changeTarget(2)
-                skillList = ['j12','j13','j331','m1','m2']
+                skillList = ['j31','m13']
                 self.excuteSillList(skillList)           
             self.currentBattle = battle
         else:
@@ -601,11 +439,11 @@ class Controller():
         img = self.op.getScreenCap().convert('L')
         supportList = crop(img,50,170,(216,550))
         found = False
-        supportTarget = [ss]
+        supportTarget = [km1,km2,km3,ml1,ml2]
         #supportTarget = [xh]
         for sup in supportTarget:
             template.paste(sup,box)
-            template.paste(jm,(0,126,157,126+jm.size[1]))
+            template.paste(wc,(0,126,157,126+wc.size[1]))
             found = self.findSupport(supportList,template)
             if found:
                 break
@@ -630,10 +468,10 @@ if __name__ == '__main__':
     #con.analysis(test)
     settings = {
         'apple':-1,
-        'times':40,
+        'times':10,
         'apple_prior':3
     }
     con = Controller(settings)
-    con.inBattle = True
+    con.inBattle = False
     con.run()
         

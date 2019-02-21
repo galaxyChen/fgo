@@ -17,4 +17,4 @@ while True:
     else:
         for i in range(10):
             handler.tap(430,450)
-            time.sleep(0.3)
+            time.sleep(0.1)

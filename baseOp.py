@@ -89,10 +89,15 @@ cards = []
 for i in range(5):
     cards.append(Image.open('./img/card%dTitle.png'%(i+1)))
     
+battle1 = Image.open('./img/battle1.png')
+battle2 = Image.open('./img/battle2.png')
+battle3 = Image.open('./img/battle3.png')
+    
 
 class baseOperator:
     def __init__(self):
         self.memberCards = None
+        self.lastImg = None
         pass
     
     def loadMember(self,member):
@@ -121,6 +126,17 @@ class baseOperator:
     def tap(self,x,y):
         #print("点击%d %d"%(x,y))
         excute("input tap %d %d"%(x,y),"adb shell")
+    
+    def cutSkill(self,img,member,skill):
+        y = 550
+        width = 55
+        height = 55
+        x_gap = 95
+        x = [40,360,680]
+        
+        x_ = x[member-1]+(skill-1)*x_gap
+        skillImg = crop(img,x_,y,(width,height)).convert('L')
+        return skillImg
     
     def findSmall(self,s,t,times = 1):
         # 缩小图片
@@ -155,6 +171,7 @@ class baseOperator:
     
     def getBattle(self,img):
         t = img.crop((750,0,950,130))
+        self.lastImg = t
         res = send(t)
         if res['ret']!=0:
             return -1
@@ -174,10 +191,24 @@ class baseOperator:
         #print(res)
         return -1;
     
+    def getBattleByImg(self,img):
+        t = img.crop((850,0,950,50)).convert('L').point(lambda x:0 if x<200 else x)
+        _,_,dis = self.findSmall(t,battle1)
+        if dis<1:
+            return 1
+        _,_,dis = self.findSmall(t,battle2)
+        if dis<1:
+            return 2
+        _,_,dis = self.findSmall(t,battle3)
+        if dis<1:
+            return 3
+    
     def getNp(self,img = None):
         if not img:
             img = self.getScreenCap().convert('L')
-        data = send(img.crop((105,650,950,720)))
+        t = img.crop((105,650,950,720))
+        self.lastImg = t
+        data = send(t)
         if data['ret']!=0:
             print("识别失败,重试")
             return self.getNp()
@@ -187,11 +218,15 @@ class baseOperator:
         for item in data['item_list']:
             if '%' in item['itemstring']:
                 num = re.sub(numPattern,'',item['itemstring'])
+                num = num[0:3]
                 if len(num)==0:
                     npList.append(0)
                 else:
                     try:
-                        npList.append(int(num))
+                        num_ = int(num)
+                        if num_>200:
+                            num_ = int(num[0:2])
+                        npList.append(num_)
                     except ValueError:
                         print(num)
                         return self.getNp()
@@ -264,15 +299,18 @@ class baseOperator:
             newImg.paste(cards[i],(0,h,width,h+height))
             h += height
             newImg.paste(crop(img,x[i],y,(width,height)),(0,h,width,h+height))
-        
-        data = send(newImg.convert('L'))
+        t = newImg.convert('L')
+        self.lastImg = t
+        data = send(t)
         if data['ret'] != 0:
             return self.getStars()
         star = []
         currentStar = 0
         while (data['ret']!=0):
             print("星星识别出错，重新识别")
-            data = send(newImg.convert('L'))
+            t = newImg.convert('L')
+            self.lastImg = t
+            data = send(t)
         data = data['data']['item_list']
         for item in data:
             if item['itemstring'].startswith('色卡'):

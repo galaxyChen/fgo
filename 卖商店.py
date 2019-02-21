@@ -15,14 +15,16 @@ while True:
         for y in range(4):
             for x in range(7):
                 handler.tap(135+x*135,255+y*135)
-                time.sleep(0.1)
+                time.sleep(0.2)
         # 决定
         handler.tap(1160,670)
         time.sleep(0.5)
         # 销毁
         handler.tap(840,590)
-        time.sleep(1)
+        time.sleep(0.5)
         handler.tap(640,585)
+        while handler.checkCondition(handler.getScreenCap().convert('L'),confirm,1040,0,confirm.size):
+            continue
     else:
         handler.tap(640,585)
     time.sleep(0.5)
