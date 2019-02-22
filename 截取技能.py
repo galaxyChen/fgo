@@ -7,8 +7,8 @@ from baseOp import crop,baseOperator
 
 if __name__ == '__main__':
     op = baseOperator()
-    img = Image.open('./参考/attack1.png')
-    #img = op.getScreenCap()
+    #img = Image.open('./参考/attack1.png')
+    img = op.getScreenCap()
     y = 550
     width = 55
     height = 55
@@ -16,5 +16,5 @@ if __name__ == '__main__':
     x = [40,360,680]
     
     member = 2
-    skill = 3
+    skill = 2
     skillImg = crop(img,x[member-1]+(skill-1)*x_gap,y,(width,height))
