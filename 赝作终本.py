@@ -38,7 +38,7 @@ cards = []
 for i in range(5):
     cards.append(Image.open('./img/card%dTitle.png'%(i+1)))
 
-member = ['北斋','阿比','孔明','梅林','大英雄']
+member = ['北斋','阿比','孔明','孔明','大英雄']
 memberCards = {}
 for m in member:
     memberCards[m] = Image.open('./img/cards/%s.png'%(m)).convert('L')
@@ -199,7 +199,7 @@ class Controller():
         else:
             memberCards_ = {}
             for m in memberCards:
-                if m in ['北斋','阿比','梅林']:
+                if m in ['北斋','阿比','孔明']:
                     memberCards_[m] = memberCards[m]
                     
         print("识别英灵色卡")
@@ -298,10 +298,10 @@ class Controller():
                 
             card = self.getCardList(battle,img)
             #红卡优先
-            cardPrior = {'北斋':900,'梅林':500,'阿比':1000}
+            cardPrior = {'北斋':900,'孔明':500,'阿比':1000}
             colorPrior = {'红卡':1000,'蓝卡':900,'绿卡':500}
             if not self.condition['ab']:
-                cardPrior = {'北斋':900,'梅林':1000,'阿比':1500}
+                cardPrior = {'北斋':900,'孔明':1000,'阿比':1500}
                 colorPrior = {'红卡':800,'蓝卡':2000,'绿卡':900}
             # 计算选什么卡
             for temp in card:
@@ -371,7 +371,7 @@ class Controller():
                 self.excuteSillList(skillList)
                         
             if battle == 2:
-                skillList = ['j12','j13','j21']
+                skillList = ['j12','j13','j21','j311']
                 self.excuteSillList(skillList)
             
             if battle == 3:
@@ -379,11 +379,11 @@ class Controller():
                 self.skillCheck = 3
                 self.skillReady = readAndConvert('./img/skill/ab3.png')
                 
-                skillList = ['j11','j311']
+                skillList = ['j11']
                 self.excuteSillList(skillList)   
                 self.changeMember(3,4)
                 self.changeTarget(2)
-                skillList = ['j31','j332','j22','m1','m2']
+                skillList = ['j311','j32','j33','m1','m2']
                 self.excuteSillList(skillList) 
                 
             self.currentBattle = battle
