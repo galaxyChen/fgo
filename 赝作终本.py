@@ -244,7 +244,7 @@ class Controller():
             cardPrior = {'北斋':700,'孔明':1000,'阿比':700}
             colorPrior = {'红卡':1000,'蓝卡':900,'绿卡':500}
             if not self.condition['ab']:
-                cardPrior = {'北斋':900,'孔明':1000,'阿比':1500}
+                cardPrior = {'北斋':900,'孔明':1100,'阿比':1500}
                 colorPrior = {'红卡':800,'蓝卡':2000,'绿卡':900}
             # 计算选什么卡
             for temp in card:
@@ -252,12 +252,12 @@ class Controller():
                 if temp['member']=='北斋' and temp['color']=='蓝卡':
                     temp['score'] += 100
             # 取卡
-            card = sorted(card,key = lambda x:x['score'],reverse = True)[0:3]
+            card = sorted(card,key = lambda x:x['score'],reverse = True)
             # 孔明红卡靠后
             if not self.condition['ab']:
                 blueCount = 0
                 hasAb = False
-                for c in card:
+                for c in card[0:2]:
                     if c['color'] == '蓝卡':
                         blueCount+=1
                     if c['member'] == '阿比':
@@ -269,7 +269,11 @@ class Controller():
             print("选卡")
             time.sleep(0.8)
             cardLog = ''
+            lastMember = ''
             for c in card:
+                if c['member'] == lastMember:
+                    continue
+                lastMember = c['member']
                 self.selectCard(c['loc'])
                 cardLog+=c['member']+c['color']+":"+str(c['score'])+" "
                 time.sleep(0.8)
@@ -287,12 +291,14 @@ class Controller():
                 np = self.op.getNp(img)
                 print(np)
                 if np[0]>=100:
+                    time.sleep(0.8)
                     print("北斋宝具")
                     self.useBj(1)
                     time.sleep(0.8)
                 
                 if np[1]>=100:
-                    self.useBj(1)
+                    time.sleep(0.8)
+                    self.useBj(2)
                     print("阿比宝具")
                     time.sleep(0.8)
                 
@@ -322,7 +328,8 @@ class Controller():
                 if hasAb and blueCount>=2:
                     self.condition['ab'] = True
             rePrior = {'红卡':2,'绿卡':1,'蓝卡':0}
-            card = sorted(card,key = lambda x:rePrior[x['color']],reverse = True)
+            if self.condition['ab']:
+                card = sorted(card,key = lambda x:rePrior[x['color']],reverse = True)
             self.log(' '.join(["%d:%s"%(c['loc'],c['member']+c['color']) for c in card]))
             # 用卡
             print("选卡")
@@ -383,7 +390,7 @@ class Controller():
                 self.excuteSillList(skillList)   
                 self.changeMember(3,4)
                 self.changeTarget(2)
-                skillList = ['j311','j32','j33','m1','m2']
+                skillList = ['j311','j32','j33','j22','m1','m2']
                 self.excuteSillList(skillList) 
                 
             self.currentBattle = battle
@@ -614,9 +621,9 @@ if __name__ == '__main__':
     #test = Image.open('./img/test2.png')
     #con.analysis(test)
     settings = {
-        'apple':20,
-        'times':-1,
-        'apple_prior':1
+        'apple':-1,
+        'times':4,
+        'apple_prior':3
     }
     con = Controller(settings)
     con.inBattle = False
