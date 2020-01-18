@@ -15,6 +15,6 @@ if __name__ == '__main__':
     x_gap = 95
     x = [40,360,680]
     
-    member = 2
-    skill = 2
+    member = 3
+    skill = 3
     skillImg = crop(img,x[member-1]+(skill-1)*x_gap,y,(width,height))

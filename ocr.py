@@ -13,8 +13,8 @@ import urllib3
 
 urllib3.disable_warnings()
 
-app_id = 2111840508
-app_key = 'zpw9pYdvHYjOhv3K'
+app_id = 2127635001
+app_key = 'SKoFPZ6axXu9SoV0'
 
 def getSign(param):
     res = parse.urlencode([(k,param[k]) for k in sorted(param.keys())])
@@ -38,17 +38,17 @@ def send(img):
     param['nonce_str'] = 'GAGAGAGAGA'
     param['time_stamp'] = time.time()
     param['sign'] = getSign(param)
-    #url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_generalocr'
-    url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_handwritingocr'
+    url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_generalocr'
+    #url = 'https://api.ai.qq.com/fcgi-bin/ocr/ocr_handwritingocr'
     headers = {
             'Connection': 'close',
             'Content-Type':'application/x-www-form-urlencoded'
     }
     response = None
     try :
-        response = requests.post(url,data = param,headers = headers,verify=False,timeout = 3)
+        response = requests.post(url,data = param,headers = headers,verify=False,timeout = 5)
     except requests.exceptions.SSLError:
-        print("请求出错!")
+        print("请求出错!SSLError")
         time.sleep(5)
         return send(img)
     except requests.exceptions.ConnectionError:

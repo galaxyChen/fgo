@@ -8,17 +8,23 @@ import time
 import matplotlib.pyplot as plt
 from ocr import send
 from controlHelper import readAndConvert,findSmall,crop,tap,excute,checkCondition
+from baseOp import baseOperator
+import re
 
-# 初始化小图
-km1 = readAndConvert('./img/km1.png') 
-km2 = readAndConvert('./img/km2.png') 
-ml1 = readAndConvert('./img/ml1.png') 
-ml2 = readAndConvert('./img/ml2.png') 
+# 初始化助战路径
+img_path = './img/'
+support_dict = {
+        'cba':['cba.png'],
+        'km':['km1.png','km2.png','km3.png'],
+        'ml':['ml1.png','ml2.png','ml3.png']
+        }
+
 wc = readAndConvert('./img/wc.png') 
 mp = readAndConvert('./img/mpwc.png') 
 template = readAndConvert('./img/template.png') 
 box = (0,0,157,126)
 
+# 场景标记
 state_selectBattle = readAndConvert('./img/关卡选择.png')#80,20
 state_eatApple = readAndConvert('./img/吃苹果.png')#520,585
 state_support = readAndConvert('./img/助战选择标记.png')#1040,0
@@ -29,64 +35,66 @@ startMission = readAndConvert('./img/开始任务.png')#1105,640
 
 skillReady = readAndConvert('./img/attack.png') #1070,650
 nextStep = readAndConvert('./img/下一步.png') #1020,650
+goBack = readAndConvert('./img/返回按钮.png') # 1235, 670
+
+changeX = readAndConvert('./img/换人x.png')#1200,115
+
+addFriend = readAndConvert("./img/申请好友.png") # 900,600
         
 class Controller():
     def __init__(self,settings):
-        self.settings = settings
+        self.targetTimes = -1
+        self.targetApples = -1
         self.times = 0
         self.apple = 0
+        self.apple_prior = 1
+        
+        self.support = []
+        self.supportImg = {}
+        self.cloth = []
+        self.currentSupport = None
+        
         self.retryCount = 0
         self.finished = False
         self.currentBattle = -1
         self.attackReady = False
         self.currentOp = []
+        self.setConfig(settings)
+        self.op = baseOperator()
+        
+        
+    def setConfig(self, setting):
+        if 'times' in setting:
+            self.targetTimes = setting['times']
+        if 'apple' in setting:
+            self.targetApples = setting['apple']
+        if 'support' in setting:
+            self.support = setting['support']
+            for people in setting['support']:
+                peopleImg = []
+                for imgName in support_dict[people]:
+                    peopleImg.append(readAndConvert(img_path+imgName))
+                self.supportImg[people] = peopleImg
+        if 'cloth' in setting and setting['cloth'] is not None:
+            self.cloth = setting['cloth']
+        if 'apple_prior' in setting:
+            self.apple_prior = setting['apple_prior']
     
     def finish(self):
+        print("finish")
         self.finished = True
         print(time.strftime('%H:%M:%S',time.localtime()))
         print("结束任务")
     
-    def analysis(self,img):
-        if self.attackReady:
-            self.attack(img)
-            return
-        img = img.convert('L')
-        state = self.checkState(img)
-        if state == 'selectBattle':
-            print("select battle")
-            self.selectBattle(img)
-            return
-        if state == 'eatApple':
-            print("eatApple")
-            self.eatApple(img)
-            return 
-        if state == "selectSupport":
-            print("选择助战")
-            self.selectSupport(img)
-            return
-        if state == 'startMission':
-            print("开始任务")
-            self.startMission()
-            return
-        if state == "skill":
-            #print("using skill")
-            self.useSkill(img)
-            return
-        if state == "nextStep":
-            print("下一步")
-            self.nextStep(img)
-            return
-        if state == "wait":
-            tap(970,90)
-            tap(970,90)
-            time.sleep(1)
-            return
         
-    def nextStep(self,img):
+    def nextStep(self):
+        print("next step")
         tap(1100,680)
         time.sleep(5)
         
-    def checkState(self,img):
+    def checkState(self,img=None):
+        if img is None:
+            img = self.op.getScreenCap().convert("L")
         if checkCondition(img,startMission,1105,640,startMission.size):
             return "startMission"
         if checkCondition(img,state_selectBattle,80,20,state_selectBattle.size):
@@ -99,70 +107,29 @@ class Controller():
             return "skill"
         if checkCondition(img,nextStep,1020,650,nextStep.size):
             return "nextStep"
+        if checkCondition(img,addFriend,900,600,addFriend.size):
+            return "addFriend"
         return "wait"
-        
-    def xjbd(self,img):
-        print("xjbd")
-        cards = []
-        
+                
     
-    def attack(self,img):
-        self.attackReady = False
-        op = self.currentOp[0]
-        if op == "xjbd":
-            self.xjbd(img)
-            self.currentOp.pop(0)
-        else:
-            cardNum = 0
-            while len(self.currentOp)>0:
-                op = self.currentOp[0]
-                if op[0] == 'b':
-                    self.useBj(op)
-                    time.sleep(0.5)
-                    cardNum += 1
-                    self.currentOp.pop(0)
-            while cardNum<3:
-                self.selectCard(cardNum)
-                time.sleep(0.5)
-                cardNum += 1
+    def attack(self):
+        print("attack")
+        tap(1130, 600)
+        time.sleep(2)
+        
+    def goBack(self):
+        print("go back")
+        tap(1200,680)
+        time.sleep(1)
+        
+    def refuse(self):
+        print("refuse")
+        tap(330,620)
+        time.sleep(1)
             
             
-    def useSkill(self,img):
-        battle = self.getBattle(img)
-        if battle == -1:
-            print("battle 识别出错，重试")
-            return
-        print("battle %d"%battle)
-        if battle == self.currentBattle:
-            # 继续执行当前的op
-            if len(self.currentOp) == 0:
-                # 预定义指令执行完了，开始xjbd
-                # 点击attack
-                self.currentOp.append('xjbd')
-                tap(1130,600)
-                self.attackReady = True
-                time.sleep(2)
-            else:
-                op = self.currentOp[0]
-                if op[0] == 'j' or op[0] == 'm':
-                    self.skill(op)
-                    self.currentOp.pop(0)
-                elif op[0] == 'b':
-                    # 点击attack
-                    tap(1130,600)
-                    self.attackReady = True
-                    time.sleep(2)
-                elif op[0] == 'c':
-                    self.changeTarget(op)
-                    self.currentOp.pop(0)
-        else:
-            # 更新op列表和当前的battle
-            self.currentBattle = battle
-            self.currentOp = self.settings['fight'][battle-1].split()
-            self.useSkill(img)
-                    
-    
     def startMission(self):
+        print("start mission")
         tap(1200,680)
         self.currentBattle = -1
         self.times += 1
@@ -170,11 +137,12 @@ class Controller():
         print("第%d次打本"%self.times)
         time.sleep(10)
         
-    def selectBattle(self,img):
+    def selectBattle(self,img=None):
+        print("select battle")
         select = False
-        if self.settings['times']!=-1 :
+        if self.targetTimes!=-1 :
             # 按照次数去打本
-            if self.settings['times'] > self.times:
+            if self.targetTimes > self.times:
                 #未达到额定次数
                 select = True
             else:
@@ -189,11 +157,12 @@ class Controller():
             tap(950,180)
             time.sleep(1)
             
-    def eatApple(self,img):
+    def eatApple(self):
+        print("eat apple")
         eat = False
-        if self.settings['apple']!=-1:
+        if self.targetApples!=-1:
             # 按照苹果数量来打本
-            if self.apple < self.setting['apple']:
+            if self.apple < self.targetApples:
                 # 数量未满足,吃苹果
                 eat = True
             else:
@@ -209,13 +178,13 @@ class Controller():
             print("第%d次吃苹果"%self.apple)
             excute("input swipe 640 360 640 200 300","adb shell")
             time.sleep(0.5)
-            if self.settings['apple_prior'] == 1:
+            if self.apple_prior == 1:
                 # 金苹果
                 tap(380,200)
-            if self.settings['apple_prior'] == 2:
+            if self.apple_prior == 2:
                 # 银苹果
                 tap(380,350)   
-            if self.settings['apple_prior'] == 3:
+            if self.apple_prior == 3:
                 # 铜苹果
                 tap(380,500)
             # 确认吃苹果
@@ -224,76 +193,129 @@ class Controller():
             
             
                                             
-    def getBattle(self,img):
+    def getBattle(self,img=None):
+        print("get battle")
+        if img is None:
+            img = self.op.getScreenCap().convert("L")
         t = img.crop((750,0,950,130))
         res = send(t)
         res = res['data']['item_list']
+        print("=============")
         for item in res:
-            if item['itemstring'].upper().startswith('BAT'):
-                battle = item['itemstring'].split()[1][0]
+            print(item['itemstring'])
+            match =  re.search('([123])[/1]3', item['itemstring'].replace(" ",""))
+            if match:
+                battle = match.group(1)
+                print("=============")
+                print("battle", battle)
                 return int(battle)
+        print("============")
         #print(res)
-        return -1;
+        return self.getBattle()
             
-    def selectCard(self,cardNum):
-        y = 400;
-        x_loc = {1:130,2:380,3:640,4:900,5:1160}
-        x =x_loc[cardNum]
-        tap(x,y)
+    def selectCard(self,cards):
+        print("select cards", cards)
+        for cardNum in cards:
+            y = 400;
+            x_loc = {1:130,2:380,3:640,4:900,5:1160}
+            x =x_loc[cardNum]
+            tap(x,y)
+            time.sleep(0.5)
     
-    def useBjHelper(self,bjNum):
-        y = 220
-        x_loc = {1:410,2:640,3:880}
-        x =x_loc[bjNum]
-        tap(x,y)
     
-    def useBj(self,op):
-        num = int(op[1])
-        self.useBjHelper(num)
+    def useBj(self,bjs):
+        print("use big", bjs)
+        for bjNum in bjs:
+            y = 220
+            x_loc = {1:410,2:640,3:880}
+            x =x_loc[bjNum]
+            tap(x,y)
+            time.sleep(0.5)
         
-    def changeTarget(self,op):
-        target = int(op[1])
+    def changeTarget(self,target):
+        print("change target:", target)
+        # 从左到右123
         y = 40
         x_loc = {1:45,2:285,3:525}
         x =x_loc[target]
         tap(x,y)
-            
-    def skill(self,op):
-        print("使用技能：%s"%op)
-        if op[0] == 'j':
-            target = op[1:3]
-            y = 580
-            user = {'1':70,'2':380,'3':700}
-            offset = {'1':0,'2':95,'3':190}
-            x = user[target[0]] + offset[target[1]]
-            tap(x,y)
-            if len(op) == 4:
-                y = 450
-                target = {'1':330,'2':660,'3':950}
-                x = target[op[3]]
-                time.sleep(1)
-                tap(x,y)
-            time.sleep(1.5)
-            return 
         
-        if op[0] == 'm':
-            tap(1190,310)
-            time.sleep(0.5)
-            y = 320
-            target = {'1':910,'2':995,'3':1080}
-            x = target[op[1]]
-            tap(x,y)
-            if len(op) == 3:
-                y = 450
-                target = {'1':330,'2':660,'3':950}
-                x = target[op[2]]
-                time.sleep(1)
+    def changeMember(self,m1,m2):
+        print("change member")
+        self.useSkill(['m3'], wait_after=False)
+        print("检查换人窗口")
+        while not self.op.checkCondition(self.op.getScreenCap().convert('L'),changeX,1200,115,changeX.size):
+            self.useSkill(['m3'])
+            time.sleep(1)
+        print("换人")
+        y = 350
+        x = [140,340,540,740,940,1140]
+        self.op.tap(x[m1-1],y)
+        time.sleep(0.3)
+        self.op.tap(x[m2-1],y)
+        time.sleep(0.3)
+        self.op.tap(640,620)
+        self.op.tap(640,620)
+        self.op.tap(640,620)
+        time.sleep(3)
+        # 检查换人错误
+        print("检查换人错误")
+        while self.checkState()!='skill':
+            if self.op.checkCondition(self.op.getScreenCap().convert('L'),changeX,1200,115,changeX.size):
+                self.op.tap(1220,140)
+                time.sleep(0.5)
+                self.op.tap(1190,310)
+                self.changeMember(m1,m2)
+            print("等待状态")
+            
+    def useSkill(self,skillList, wait_after=True):
+        """
+        执行技能序列
+        s: 技能
+        m: 御主技能
+        123是从左到右的编号
+        第一个数字是英灵，第二个数字是技能，第三个数字是目标
+        """
+        print("use skill")
+        for op in skillList:
+            self.waitUtilSkillReady()
+            print("使用技能：%s"%op)
+            if op[0] == 's':
+                target = op[1:3]
+                y = 580
+                user = {'1':70,'2':380,'3':700}
+                offset = {'1':0,'2':95,'3':190}
+                x = user[target[0]] + offset[target[1]]
                 tap(x,y)
-            time.sleep(1.5)
-            return 
+                if len(op) == 4:
+                    y = 450
+                    target = {'1':330,'2':660,'3':950}
+                    x = target[op[3]]
+                    time.sleep(1)
+                    tap(x,y)
+                time.sleep(1.5)
+            
+            if op[0] == 'm':
+                tap(1190,310)
+                time.sleep(0.5)
+                y = 320
+                target = {'1':910,'2':995,'3':1080}
+                x = target[op[1]]
+                tap(x,y)
+                if len(op) == 3:
+                    y = 450
+                    target = {'1':330,'2':660,'3':950}
+                    x = target[op[2]]
+                    time.sleep(1)
+                    tap(x,y)
+                time.sleep(1.5)
+        if wait_after:
+            self.waitUtilSkillReady()
+        
     
     def findSupport(self,supportList,target):
         # 判断当前助战列表有没有需要的目标
+        print("find support")
         x,y,dis = findSmall(supportList,target,10)
         if dis<40:
             print("发现目标!")
@@ -307,8 +329,20 @@ class Controller():
         # 刷新助战列表
         print("刷新助战")
         tap(840,128)
+        time.sleep(1)
+        img = self.op.getScreenCap().convert("L")
+        if checkCondition(img,confirmFresh,705,535,confirmFresh.size):
+            # 刷新助战确认
+            tap(840,560)
+            print("刷新助战确认")
+            time.sleep(1)
+            return 
         
-    def selectSupport(self,img):
+        
+    def selectSupport(self,img = None):
+        print("select support")
+        if img is None:
+            img = self.op.getScreenCap().convert("L")
         # 组合出需要找的助战图
         if checkCondition(img,refreshTooFast,510,533,refreshTooFast.size):
             # 刷新助战太快
@@ -318,46 +352,107 @@ class Controller():
             self.refreshSupport()
             return 
             
-            
-        if checkCondition(img,confirmFresh,705,535,confirmFresh.size):
-            # 刷新助战确认
-            tap(840,560)
-            print("刷新助战确认")
-            time.sleep(1)
-            return 
                 
         print("搜索助战")
-        target = self.settings['support']
         supportList = crop(img,50,170,(216,550))
         found = False
-        if target == 'km':
-            template.paste(km1,box)
-            found = self.findSupport(supportList,template)
-            if not found:
-                template.paste(km2,box)
-                found = self.findSupport(supportList,template)
-        if target == 'ml':
-            template.paste(ml1,box)
-            found = self.findSupport(supportList,template)
-            if not found:
-                template.paste(ml2,box)
-                found = self.findSupport(supportList,template)
+        for people in self.supportImg:
+            if found:
+                break
+            for peopleImg in self.supportImg[people]:
+                found = self.findSupport(supportList,peopleImg)
+                if found:
+                    self.currentSupport = people
+                    break
+                
         # 没找到就向下滑
         if not found:
             excute("input swipe 690 700 690 500 300","adb shell")
             print("划一下")
             time.sleep(3)
             self.retryCount += 1
-            if self.retryCount == 6:
-                # 尝试4次就刷新
+            if self.retryCount == 3:
+                # 尝试3次就刷新
                 self.refreshSupport()
+                self.selectSupport()
                 self.retryCount = 0
         else:
             time.sleep(1.5)
+            
+    def _waitUntil(self, condition, x, y, tapLoc = None, sleep=1):
+        """
+        wait util a target image shown in (x,y)
+        will tap screen at tapLoc whiling waiting
+        """
+        print("waiting skill ready")
+        while True:
+            img = self.op.getScreenCap().convert('L')
+            if self.op.checkCondition(img,condition, x, y, condition.size):
+                return
+            if tapLoc is not None:
+                self.op.tap(*tapLoc)
+            time.sleep(sleep)
+    
+    def waitUtilSkillReady(self):
+        self._waitUntil(goBack, 1160, 670, (1130,600), 0.5)
+        tap(1200,680)
+        time.sleep(0.5)
+    
+                
+
+class gameRunner:
+    def __init__(self, con, battles):
+        self.battles = battles
+        self.con = con
+        self.log_name = time.strftime("%m-%d_%H-%M-%S",time.localtime())
+        if not os.path.exists("./log/%s"%self.log_name):
+            os.mkdir("./log/%s"%self.log_name)
         
+    def run(self):
+        """
+        完整的生命周期
+        """
+        while not self.con.finished:
+            state = self.con.checkState()
+            if state == 'selectBattle':
+                print("select battle")
+                self.con.selectBattle()
+            if state == 'eatApple':
+                print("eatApple")
+                self.con.eatApple()
+            if state == "selectSupport":
+                print("选择助战")
+                self.con.selectSupport()
+            if state == 'startMission':
+                print("开始任务")
+                self.con.startMission()
+            if state == "skill":
+                #print("using skill")
+                battle = self.con.getBattle()
+                self.battles[battle-1](self.con)
+                
+            if state == "nextStep":
+                img = self.con.op.getScreenCap()
+                img.save("./log/%s/%s.png"%(self.log_name, time.strftime("%m-%d_%H-%M-%S",time.localtime())))
+                self.con.nextStep()
+            
+            if state == "addFriend":
+                self.con.refuse()
+                
+            if state == "wait":
+                tap(970,90)
+                tap(970,90)
+                time.sleep(1)
         
 if __name__ == '__main__':
-    con = Controller('skm')
+    con = Controller({
+            'apple':10,
+            'support':['cba'],
+            'cloth':None,
+            'battle1':None,
+            'battle2':None,
+            'battle3':None
+            })
     #test = Image.open('./img/test2.png')
     #con.analysis(test)
         
