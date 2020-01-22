@@ -38,7 +38,7 @@ def battle3km(con):
 
 if __name__ == "__main__":
     setting = {
-            'apple':20,
+            'apple':60,
             'support':['km']
             }
     con = Controller(setting)
