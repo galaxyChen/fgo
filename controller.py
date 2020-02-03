@@ -56,11 +56,14 @@ class Controller():
         
         self.retryCount = 0
         self.finished = False
-        self.currentBattle = -1
         self.attackReady = False
         self.currentOp = []
+        self.offline = False
+        self.currentBattle = 1
+        
         self.setConfig(settings)
         self.op = baseOperator()
+        
         
         
     def setConfig(self, setting):
@@ -79,6 +82,8 @@ class Controller():
             self.cloth = setting['cloth']
         if 'apple_prior' in setting:
             self.apple_prior = setting['apple_prior']
+        if 'offline' in setting:
+            self.offline = setting['offline']
     
     def finish(self):
         print("finish")
@@ -131,7 +136,7 @@ class Controller():
     def startMission(self):
         print("start mission")
         tap(1200,680)
-        self.currentBattle = -1
+        self.currentBattle = 1
         self.times += 1
         print(time.strftime('%H:%M:%S',time.localtime()))
         print("第%d次打本"%self.times)
@@ -191,10 +196,18 @@ class Controller():
             time.sleep(1)
             tap(840,560)
             
-            
+    def _getBattleOffline(self):
+        battle = self.currentBattle
+        self.currentBattle += 1
+        if self.currentBattle == 4:
+            self.currentBattle = 1
+        print("battle:", battle)
+        return battle
                                             
     def getBattle(self,img=None):
         print("get battle")
+        if self.offline:
+            return self._getBattleOffline()
         if img is None:
             img = self.op.getScreenCap().convert("L")
         t = img.crop((750,0,950,130))
@@ -451,7 +464,8 @@ if __name__ == '__main__':
             'cloth':None,
             'battle1':None,
             'battle2':None,
-            'battle3':None
+            'battle3':None,
+            'offline':True
             })
     #test = Image.open('./img/test2.png')
     #con.analysis(test)

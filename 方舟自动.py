@@ -15,7 +15,7 @@ def waitUntil(condition,x,y,handler,sleep=1):
         time.sleep(sleep)
         
 
-number = 4
+number = 14
 count = 0
 while True:
     waitUntil(finish,1050,570,handler,10)

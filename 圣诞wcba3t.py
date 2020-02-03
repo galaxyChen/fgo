@@ -10,37 +10,45 @@ def battle1(con):
     con.selectCard([1,2])
 
 def battle2(con):
-    con.useSkill(['s112','s312','s23'])
+    con.useSkill(['s132','s12','s113'])
+    con.changeMember(1,4)
+    con.useSkill(['s21','s132'])
     con.attack()
     con.useBj([2])
     con.selectCard([1,2])
 
 def battle3(con):
-    con.useSkill(['s12','s32','s132','s332'])
+    con.useSkill(['s332','s12','s32','s21'])
     con.attack()
     con.useBj([2])
     con.selectCard([1,2])
     
-# 孔明
+def battle1km(con):
+    con.useSkill(['s33','s32','s311'])
+    con.attack()
+    con.useBj([1])
+    con.selectCard([1,2])
+    
 def battle2km(con):
-    con.useSkill(['s13','s33','s312'])
+    con.useSkill(['s13','m1'])
     con.attack()
     con.useBj([2])
     con.selectCard([1,2])
 
 def battle3km(con):
-    con.useSkill(['s32'])
-    con.changeMember(3,5)
-    con.useSkill(['s12','s112','s23','s332','s32'])
+    con.changeMember(3,4)
+    con.useSkill(['s33','s32','s312','s23','s21'])
     con.attack()
     con.useBj([2])
     con.selectCard([1,2])
+    
 
 if __name__ == "__main__":
     setting = {
-            'apple':60,
-            'support':['km']
+            'times':1,
+            'support':['cba'],
+            'offline':True
             }
     con = Controller(setting)
-    runner = gameRunner(con, [battle1, battle2km, battle3km])
+    runner = gameRunner(con, [battle1, battle2, battle3])
     runner.run()
